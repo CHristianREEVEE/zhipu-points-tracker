@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>积分悬浮面板 · Zero</title>
+<link rel="icon" href="docs/icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
+  background:#0b0f1a;color:#e8ecf4;min-height:100vh;
+  background-image:
+    radial-gradient(1100px 500px at 85% -10%, rgba(64,105,255,.16), transparent 60%),
+    radial-gradient(800px 500px at -10% 110%, rgba(0,200,160,.10), transparent 60%);
+}
+.wrap{max-width:920px;margin:0 auto;padding:48px 24px 80px}
+h1{font-size:34px;font-weight:700;letter-spacing:-.02em;margin-bottom:8px}
+h1 span{background:linear-gradient(120deg,#8fb7ff,#cfe0ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.sub{color:#8d97ad;font-size:15px;margin-bottom:36px;line-height:1.7}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;padding:20px;backdrop-filter:blur(12px);margin-bottom:18px}
+.card h2{font-size:16px;margin-bottom:10px;color:#cfd8ec}
+.shot{width:100%;border-radius:12px;border:1px solid rgba(255,255,255,.1);display:block;margin:8px 0}
+.cap{font-size:12px;color:#7c8598;text-align:center;margin-bottom:18px}
+.feat{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.f{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:14px 16px}
+.f b{display:block;font-size:14px;margin-bottom:4px}
+.f p{font-size:13px;color:#8d97ad;line-height:1.6}
+code{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;background:rgba(0,0,0,.35);
+  padding:2px 7px;border-radius:6px;color:#9db3e8}
+.foot{text-align:center;color:#5f6a80;font-size:12px;margin-top:30px}
+a{color:#8fb7ff;text-decoration:none}a:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>智谱积分<span>悬浮面板</span></h1>
+  <div class="sub">AgentMore 积分：余额 · 消耗趋势 · 任务明细 —— 网页面板 + Electron 半透明置顶悬浮窗，服务器 5 分钟自动记账，token 滚动续期 180 天免登录。</div>
+
+  <div class="card">
+    <h2>桌面悬浮窗</h2>
+    <img class="shot" src="docs/widget.png" alt="悬浮窗截图">
+    <div class="cap">时钟（秒级）· 余额 · 今日/昨日消耗左右切换 · 最近任务 · 半透明毛玻璃，永远置顶</div>
+  </div>
+
+  <div class="card">
+    <h2>网页完整面板</h2>
+    <img class="shot" src="docs/panel.png" alt="面板截图">
+    <div class="cap">每日消耗柱状图（近 14 天，悬停显示数值）· 24h/30日统计 · 变动明细</div>
+  </div>
+
+  <div class="card">
+    <h2>特性</h2>
+    <div class="feat">
+      <div class="f"><b>穿透模式</b><p>点击穿透后鼠标直达底层应用，不打断游戏/写作；光标移入自动武装，右键一键恢复。</p></div>
+      <div class="f"><b>位置记忆</b><p>拖到哪就记到哪（widget.config.json），下次启动原地出现。</p></div>
+      <div class="f"><b>自动续期</b><p>复刻官方 refresh 端点，token 滚动续 180 天，理论上永久免重登。</p></div>
+      <div class="f"><b>数据自治</b><p>全部数据落自己服务器（JSON 落盘），密钥墙 + 密钥不进 URL。</p></div>
+      <div class="f"><b>零依赖 worker</b><p>Python 标准库实现，systemd 常驻，无第三方包。</p></div>
+      <div class="f"><b>服务器热更新</b><p>悬浮窗页面由服务器实时下发，改功能不用重新打包 exe。</p></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>快速开始</h2>
+    <div class="f" style="margin-bottom:10px"><p style="font-size:13px">
+      ① 服务器跑 <code>worker.py</code>（systemd 常驻）→ ② Caddy 挂 <code>/points/*</code> →
+      ③ Electron 包解压双击 exe → ④ F12 抄一次 cookie 粘进面板，此后全自动。</p></div>
+    <div class="f"><p style="font-size:13px">细节见 <a href="https://github.com/CHristianREEVEE/zhipu-points-tracker">GitHub 仓库 README</a>（含 AgentMore Web API 逆向要点：时间戳校验位算法 / X-Sign 签名 / WAF 浏览器头 / refresh 滚动续期）。</p></div>
+  </div>
+
+  <div class="foot">Zero · 清言 AgentMore · 2026-09</div>
+</div>
+</body>
+</html>
