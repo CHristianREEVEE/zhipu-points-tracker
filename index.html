@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>积分面板</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="积分">
+<meta name="theme-color" content="#0b0f1a">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{height:100%}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Segoe UI",sans-serif;
+  background:#0b0f1a;color:#e8ecf4;overflow-x:hidden;
+  background-image:
+    radial-gradient(1200px 600px at 80% -10%, rgba(64,105,255,.18), transparent 60%),
+    radial-gradient(900px 500px at -10% 110%, rgba(0,200,160,.12), transparent 60%);
+  min-height:100dvh;
+}
+.wrap{max-width:680px;margin:0 auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom))}
+.card{
+  background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);
+  border-radius:20px;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);
+  padding:20px;margin-bottom:14px;
+  box-shadow:0 8px 32px rgba(0,0,0,.35);
+}
+.hint{color:#8b94a7;font-size:12px}
+/* 密钥门 */
+#gate{display:flex;flex-direction:column;gap:12px;padding-top:28vh;text-align:center}
+#gate input{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.14);border-radius:14px;
+  color:#fff;padding:14px 16px;font-size:16px;text-align:center;outline:none;
+}
+#gate input:focus{border-color:rgba(90,140,255,.6)}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:6px;
+  background:linear-gradient(135deg,#4f7cff,#7a5cff);color:#fff;border:none;border-radius:14px;
+  padding:13px 18px;font-size:15px;font-weight:600;cursor:pointer;width:100%;
+}
+.btn:active{transform:scale(.97)}
+.btn.ghost{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12)}
+/* 顶部行 */
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.top .t{font-size:15px;font-weight:700;letter-spacing:.5px}
+.rowbtns{display:flex;gap:8px}
+.icobtn{
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);color:#cfd6e4;
+  border-radius:12px;width:38px;height:38px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+}
+.icobtn:active{transform:scale(.94)}
+/* 余额 hero */
+.hero{text-align:center;padding:26px 16px}
+.hero .label{font-size:13px;color:#8b94a7;letter-spacing:2px;margin-bottom:8px}
+.hero .num{
+  font-size:64px;font-weight:800;letter-spacing:-2px;line-height:1.1;
+  background:linear-gradient(135deg,#7aa2ff,#b48cff 55%,#6ee7d8);
+  -webkit-background-clip:text;background-clip:text;color:transparent;
+  font-variant-numeric:tabular-nums;
+}
+.hero .sub{margin-top:10px;font-size:13px;color:#8b94a7;display:flex;justify-content:center;gap:14px;flex-wrap:wrap}
+.hero .sub b{color:#e8ecf4;font-weight:600;font-variant-numeric:tabular-nums}
+.up{color:#5ce8b5!important}.down{color:#ff7d8a!important}
+/* 三格统计 */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.stat{
+  background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.09);border-radius:16px;
+  padding:14px 10px;text-align:center;backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+}
+.stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .k{font-size:11px;color:#8b94a7;margin-top:4px}
+/* 图表 */
+.chart{width:100%;height:auto;display:block}
+/* 明细 */
+.panel-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.panel-title .t{font-size:14px;font-weight:700}
+.scrollbox{
+  max-height:44vh;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:4px 12px;
+}
+.rec{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 2px;border-bottom:1px solid rgba(255,255,255,.06)}
+.rec:last-child{border-bottom:none}
+.rec .l{min-width:0}
+.rec .title{font-size:14px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec .time{font-size:11px;color:#7c8598;margin-top:3px;font-variant-numeric:tabular-nums}
+.rec .amt{font-size:15px;font-weight:700;font-variant-numeric:tabular-nums;flex-shrink:0}
+.empty{text-align:center;color:#7c8598;font-size:13px;padding:26px 0}
+/* 令牌状态 */
+.tok{display:flex;align-items:center;gap:10px;font-size:13px;color:#8b94a7;padding:14px 16px}
+.dot{width:8px;height:8px;border-radius:50%;background:#ff7d8a;flex-shrink:0}
+.dot.ok{background:#5ce8b5;box-shadow:0 0 8px rgba(92,232,181,.8)}
+.copybox{
+  background:rgba(0,0,0,.35);border:1px dashed rgba(255,255,255,.2);border-radius:12px;
+  padding:10px 12px;font-size:11px;color:#9db3e8;word-break:break-all;line-height:1.5;
+  max-height:110px;overflow:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;
+  font-family:ui-monospace,Menlo,monospace;
+}
+ol.steps{padding-left:20px;font-size:13px;color:#aab3c5;line-height:1.9}
+.toast{
+  position:fixed;left:50%;bottom:40px;transform:translateX(-50%) translateY(20px);
+  background:rgba(30,38,60,.95);border:1px solid rgba(255,255,255,.15);color:#fff;
+  padding:10px 20px;border-radius:12px;font-size:14px;opacity:0;transition:all .25s;z-index:99;
+  max-width:80vw;text-align:center;backdrop-filter:blur(10px);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.spin{animation:spin 1s linear infinite;display:inline-block}
+@keyframes spin{to{transform:rotate(360deg)}}
+#app{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- 密钥门 -->
+  <div id="gate" class="card" style="background:rgba(255,255,255,.04)">
+    <div style="font-size:40px">01</div>
+    <div style="font-size:17px;font-weight:700">积分面板</div>
+    <input id="keyInput" type="password" placeholder="输入访问密钥" autocomplete="off">
+    <button class="btn" onclick="unlock()">进入</button>
+    <div class="hint">私人面板 · 仅限本人使用</div>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="app">
+    <div class="top">
+      <div class="t">积分面板</div>
+      <div class="rowbtns">
+        <button class="icobtn" onclick="doRefresh()" id="refBtn" title="刷新">⟳</button>
+      </div>
+    </div>
+
+    <div class="card hero">
+      <div class="label">当前积分</div>
+      <div class="num" id="score">— —</div>
+      <div class="sub">
+        <span>今日消耗 <b id="todayUse">—</b></span>
+        <span>较昨日 <b id="dayDelta">—</b></span>
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div class="stat"><div class="v" id="st7">—</div><div class="k">7 天消耗</div></div>
+      <div class="stat"><div class="v" id="st30">—</div><div class="k">30 天消耗</div></div>
+      <div class="stat"><div class="v" id="stRate">—</div><div class="k">日均消耗</div></div>
+    </div>
+
+    <div class="card">
+      <div class="panel-title"><div class="t">近 7 天趋势</div><div class="hint" id="updHint"></div></div>
+      <svg class="chart" id="trend" viewBox="0 0 640 170" preserveAspectRatio="xMidYMid meet"></svg>
+    </div>
+
+    <div class="card">
+      <div class="panel-title"><div class="t">变动明细</div><div class="hint">最近 30 条</div></div>
+      <div class="scrollbox" id="recBox"><div class="empty">暂无数据</div></div>
+    </div>
+
+    <div class="card" id="tokenCard">
+      <div class="tok"><span class="dot" id="tokDot"></span><span id="tokText"></span></div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:10px">
+        <textarea id="pasteTok" rows="2" placeholder="粘贴 cookie 或 refresh_token（电脑：agentmore.chatglm.cn 按 F12 → 控制台输入 document.cookie 回车 → 复制结果贴到这里）"
+          style="background:rgba(0,0,0,.3);border:1px solid rgba(255,255,255,.14);border-radius:12px;color:#e8ecf4;padding:10px 12px;font-size:12px;font-family:ui-monospace,Menlo,monospace;outline:none;resize:vertical"></textarea>
+        <button class="btn ghost" style="padding:10px" onclick="submitTok()">上报 / 更新令牌</button>
+        <button class="btn ghost" style="padding:10px" onclick="toggleBm()">也支持书签法：展开书签代码</button>
+        <div id="bmWrap" style="display:none">
+          <div class="copybox" id="bmCode"></div>
+          <button class="btn ghost" style="margin-top:8px" onclick="copyBM()">复制书签代码</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="hint" style="text-align:center;margin-top:6px">Zero · reeve10001.top/points</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const API = location.pathname.replace(/\/[^/]*$/,'') + '/api';
+const BM = "javascript:(async()=>{const c=document.cookie;if(!c.includes('chatglm_refresh_token')){alert('请先在 agentmore.chatglm.cn 登录后再点我');return;}await fetch('https://reeve10001.top/points/api/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({cookie:c})});alert('✅ 令牌已上报，回积分面板看看吧');})()";
+
+function ls(k,v){ if(v===undefined) return localStorage.getItem(k); localStorage.setItem(k,v); }
+function toast(t){ const el=document.getElementById('toast'); el.textContent=t; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'),1800); }
+
+async function unlock(){
+  const k=document.getElementById('keyInput').value.trim();
+  if(!k) return;
+  try{
+    const r=await fetch(API+'/summary',{headers:{'X-Key':k}});
+    if(r.status===401){ toast('密钥不对'); return; }
+    ls('pk',k); enter();
+  }catch(e){ toast('网络异常'); }
+}
+function enter(){
+  document.getElementById('gate').style.display='none';
+  document.getElementById('app').style.display='block';
+  load(); setInterval(load, 60000);
+}
+
+const fmt=n=>Math.round(n).toLocaleString();
+function ts2str(ts){
+  const d=new Date(ts*1000), now=new Date();
+  const p=n=>String(n).padStart(2,'0');
+  const same=d.toDateString()===now.toDateString();
+  return same?`今天 ${p(d.getHours())}:${p(d.getMinutes())}`:`${d.getMonth()+1}月${d.getDate()}日 ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+async function load(){
+  const key=ls('pk'); if(!key) return;
+  let d;
+  try{
+    const r=await fetch(API+'/summary',{headers:{'X-Key':key}});
+    if(r.status===401){ localStorage.removeItem('pk'); location.reload(); return; }
+    d=await r.json();
+  }catch(e){ return; }
+
+  // 余额
+  const score=d.member?.left_score;
+  if(score!==undefined && score!==null) document.getElementById('score').textContent=fmt(score);
+
+  // 明细驱动统计
+  const recs=Array.isArray(d.records)?d.records:[];
+  window.__lastRecords=recs;   // 供每日消耗柱状图用
+  const today=new Date(); today.setHours(0,0,0,0);
+  const day0=today.getTime()/1000;
+  let todayUse=0, use7=0, use30=0;
+  const now=Date.now()/1000;
+  for(const r of recs){
+    const s=Number(r.score)||0; if(s>=0) continue;
+    const t=Number(r.created_at)||0;
+    if(t>=day0) todayUse+=(-s);
+    if(t>=now-7*86400) use7+=(-s);
+    if(t>=now-30*86400) use30+=(-s);
+  }
+  document.getElementById('todayUse').textContent='−'+fmt(todayUse);
+  document.getElementById('st7').textContent='−'+fmt(use7);
+  document.getElementById('st30').textContent='−'+fmt(use30);
+  document.getElementById('stRate').textContent='−'+fmt(use30/30);
+
+  // 快照趋势
+  drawTrend(d.snapshots||[]);
+
+  // 较昨日：找 ~24h 前最近快照
+  const snaps=d.snapshots||[];
+  if(snaps.length>1){
+    const cur=snaps[snaps.length-1].score;
+    let prev=null;
+    for(let i=snaps.length-2;i>=0;i--){ if(now-snaps[i].ts>=20*3600){ prev=snaps[i].score; break; } }
+    if(prev!==null && cur!==undefined){
+      const df=cur-prev, el=document.getElementById('dayDelta');
+      el.textContent=(df>=0?'+':'')+fmt(df);
+      el.className=df>=0?'up':'down';
+    }
+  }
+
+  // 更新时间
+  if(d.updated_at) document.getElementById('updHint').textContent='更新于 '+ts2str(d.updated_at);
+
+  // 明细列表
+  const box=document.getElementById('recBox');
+  if(!recs.length){ box.innerHTML='<div class="empty">暂无明细数据</div>'; }
+  else{
+    box.innerHTML=recs.slice(0,30).map(r=>{
+      const s=Number(r.score)||0, pos=s>=0;
+      const t=r.created_at?ts2str(r.created_at):'';
+      const title=(r.title||'').replace(/</g,'&lt;');
+      const rm=(r.remark||'').replace(/</g,'&lt;');
+      return `<div class="rec"><div class="l"><div class="title">${title}</div><div class="time">${t}${rm?' · '+rm:''}</div></div><div class="amt ${pos?'up':'down'}">${pos?'+':''}${fmt(s)}</div></div>`;
+    }).join('');
+  }
+
+  // 令牌状态
+  const tc=document.getElementById('tokenCard');
+  const dot=document.getElementById('tokDot');
+  if(d.token_ok && d.updated_at && Date.now()/1000-d.updated_at<1800){
+    dot.className='dot ok';
+    document.getElementById('tokText').textContent='令牌正常 · 自动每 5 分钟抓取';
+  }else{
+    dot.className='dot';
+    document.getElementById('tokText').textContent=d.updated_at
+      ?('令牌可能过期（'+(d.last_err||'上次拉取失败')+'）— 重新上报一次即可')
+      :'等待令牌上报（首次使用必做，见下方）';
+  }
+  document.getElementById('bmCode').textContent=BM;
+}
+function toggleBm(){ const w=document.getElementById('bmWrap'); w.style.display=w.style.display==='none'?'block':'none'; }
+
+async function submitTok(){
+  const v=document.getElementById('pasteTok').value.trim();
+  if(!v){ toast('先粘贴内容'); return; }
+  try{
+    const r=await fetch(API+'/token',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(v.includes('=')?{cookie:v}:{refresh_token:v})});
+    const j=await r.json();
+    if(j.ok){ toast(j.changed?'已上报，几秒后刷新看数据':'令牌未变化（已是最新）'); setTimeout(load,4000); }
+    else toast('上报失败：'+(j.error||'格式不对'));
+  }catch(e){ toast('网络异常'); }
+}
+
+function drawTrend(snaps){
+  // v2：每日消耗柱状图（数据源=records，按天聚合负向变动）+ 悬停 tooltip
+  const svg=document.getElementById('trend');
+  const W=640,H=190,L=54,R=14,T=18,B=28;
+  const days=['日','一','二','三','四','五','六'];
+  // 近 14 天每日消耗
+  const now=new Date(); now.setHours(0,0,0,0);
+  const day0=now.getTime()/1000;
+  const per=new Array(14).fill(0);
+  for(const r of (window.__lastRecords||[])){
+    const s=Number(r.score)||0; if(s>=0) continue;
+    const t=Number(r.created_at)||0;
+    const idx=Math.floor((day0+86400 - t)/86400); // 今天=0
+    if(idx>=0&&idx<14) per[13-idx]+=(-s);
+  }
+  const has=per.some(v=>v>0);
+  if(!has){ svg.innerHTML='<text x="320" y="95" fill="#7c8598" font-size="13" text-anchor="middle">近两周暂无消耗记录</text>'; return; }
+  const vmax=Math.max(...per,1);
+  const nice=v=>v>=10000?(v/1000).toFixed(1)+'k':Math.round(v);
+  let grid='',labels='',bars='';
+  for(let i=0;i<=3;i++){
+    const v=vmax*i/3, yy=T+(1-i/3)*(H-T-B);
+    grid+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="rgba(255,255,255,.06)"/>`;
+    labels+=`<text x="${L-8}" y="${yy+4}" fill="#7c8598" font-size="10" text-anchor="end">${v?nice(v):'0'}</text>`;
+  }
+  const bw=Math.floor((W-L-R)/14*0.52), gap=(W-L-R)/14;
+  let tooltip='';
+  per.forEach((v,i)=>{
+    const cx=L+gap*i+gap/2;
+    const d=new Date((day0-(13-i)*86400)*1000);
+    const hh=Math.max(v>0?3:0, v/vmax*(H-T-B));
+    const y0=H-B;
+    const isToday=i===13;
+    bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${(y0-hh).toFixed(1)}" width="${bw}" height="${hh.toFixed(1)}" rx="3" fill="${v?'url(#bg)':'rgba(255,255,255,.05)'}"/>`;
+    // x 轴：周几 + 日期
+    labels+=`<text x="${cx.toFixed(1)}" y="${H-12}" fill="${isToday?'#9db3e8':'#7c8598'}" font-size="10" text-anchor="middle" font-weight="${isToday?'700':'400'}">周${days[d.getDay()]}</text>`;
+    labels+=`<text x="${cx.toFixed(1)}" y="${H-1}" fill="#5f6a80" font-size="9" text-anchor="middle">${d.getMonth()+1}/${d.getDate()}</text>`;
+  });
+  svg.innerHTML=`<defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#8fb7ff"/><stop offset="1" stop-color="rgba(102,140,255,.25)"/>
+      </linearGradient></defs>`
+    +grid+labels
+    +`<g id="bars">${bars}</g>`
+    +`<text x="${W-R}" y="${T-4}" fill="#5f6a80" font-size="9" text-anchor="end">单位：积分/天</text>`;
+  // 悬停 tooltip
+  svg.querySelectorAll('rect').forEach((rc,i)=>{
+    const idx=Math.floor((rc.x.baseVal.value+bw/2-L)/gap);
+    const v=per[idx]; if(!v) return;
+    rc.style.cursor='pointer';
+    rc.addEventListener('mouseenter',ev=>{
+      const d=new Date((day0-(13-idx)*86400)*1000);
+      showTip(ev,`${(d.getMonth()+1)}/${d.getDate()} · 消耗 −${nice(v)}`);
+    });
+    rc.addEventListener('mousemove',ev=>showTip(ev,`${(d.getMonth()+1)}/${d.getDate()} · 消耗 −${nice(v)}`));
+    rc.addEventListener('mouseleave',hideTip);
+  });
+}
+function showTip(ev,txt){
+  let t=document.getElementById('tip');
+  if(!t){ t=document.createElement('div'); t.id='tip';
+    t.style.cssText='position:fixed;z-index:50;background:rgba(20,26,44,.96);border:1px solid rgba(255,255,255,.16);color:#e8ecf4;padding:6px 10px;border-radius:8px;font-size:12px;pointer-events:none;font-variant-numeric:tabular-nums;backdrop-filter:blur(8px)';
+    document.body.appendChild(t);
+  }
+  t.textContent=txt; t.style.opacity='1';
+  const x=Math.min(ev.clientX+14, window.innerWidth-160);
+  t.style.left=x+'px'; t.style.top=(ev.clientY-34)+'px';
+}
+function hideTip(){ const t=document.getElementById('tip'); if(t) t.style.opacity='0'; }
+
+async function doRefresh(){
+  const b=document.getElementById('refBtn');
+  b.innerHTML='<span class="spin">⟳</span>';
+  try{ await fetch(API+'/refresh',{method:'POST',headers:{'X-Key':ls('pk')}}); }catch(e){}
+  setTimeout(()=>{ load(); b.innerHTML='⟳'; }, 4000);
+}
+function copyBM(){
+  const ta=document.createElement('textarea'); ta.value=BM; document.body.appendChild(ta);
+  ta.select(); document.execCommand('copy'); ta.remove(); toast('已复制，去 Safari 收签里粘贴');
+}
+
+// 启动
+(function(){
+  if(ls('pk')) enter();
+  document.getElementById('keyInput').addEventListener('keydown',e=>{ if(e.key==='Enter') unlock(); });
+})();
+</script>
+</body>
+</html>
