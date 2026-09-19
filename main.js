@@ -1,16 +1,19 @@
 'use strict';
-// 智谱积分悬浮窗 - Electron 主进程 v2
-// 穿透模型（按南浊 09-19 00:08 定的规矩）：
-//   点「穿透」→ setIgnoreMouseEvents(true, forward) → 鼠标完全穿过窗口，不影响任何底层使用
-//   穿透中页面靠 forward 的 mousemove 自感知光标 → ptArm(true) 临时恢复鼠标事件
-//   → 右键菜单「恢复交互」退出；左键全程锁定，绝不误触
-const { app, BrowserWindow, Menu, shell, screen, ipcMain } = require('electron');
+// 智谱积分悬浮窗 - Electron 主进程 v2.1
+// 穿透模型 v2.1（09-19 修右键恢复失效 bug）：
+//   v2 的「页面 mousemove 武装 + 3 秒无移动自动解除」有致命竞态：
+//   用户瞄准悬浮窗停顿 >3 秒准备右键 → 定时器误判"光标已离开"→ 解除武装 →
+//   右键漏穿到桌面，弹出的是 Windows 桌面菜单而非本窗菜单。
+//   v2.1 改为「主进程轮询光标位置」：光标在窗口内 → 接收鼠标（右键/选择可用）；
+//   离开窗口 → 恢复穿透。不依赖 DOM 事件，悬停多久右键都有效。
+//   另加 Ctrl+Alt+P 全局快捷键切换穿透（终极逃生口，右键万一再失效也有救）。
+const { app, BrowserWindow, Menu, shell, screen, ipcMain, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 // ==== 配置（打包时占位，构建脚本替换真实值）====
-const WIDGET_URL = '__WIDGET_URL__';
-const PAGE_KEY = '__PAGE_KEY__';
+const WIDGET_URL = 'https://reeve10001.top/points/widget.html';
+const PAGE_KEY = '470cb3cb69a6d0a0e9876c6f';
 const CFG_PATH = path.join(path.dirname(app.getPath('exe')), 'widget.config.json');
 const WIN_W = 300, WIN_H = 252;   // v2 加高：任务列表+时钟
 
@@ -32,12 +35,29 @@ function applyMouseEvents() {
   win.setIgnoreMouseEvents(clickThrough && !armed, { forward: true });
 }
 
+function cursorInWindow() {
+  if (!win) return false;
+  try {
+    const c = screen.getCursorScreenPoint();
+    const b = win.getBounds();
+    return c.x >= b.x && c.x < b.x + b.width && c.y >= b.y && c.y < b.y + b.height;
+  } catch { return false; }
+}
+
 function setClickThrough(on) {
   clickThrough = on;
   armed = false;
   applyMouseEvents();
   if (win) win.webContents.send('pt-state', on);
 }
+
+// ==== 核心修复：主进程光标轮询（120ms）====
+// 光标进入窗口 → 武装（右键/文本选择可落到本窗）；离开 → 回到穿透。
+setInterval(() => {
+  if (!win || !clickThrough) return;
+  const inside = cursorInWindow();
+  if (inside !== armed) { armed = inside; applyMouseEvents(); }
+}, 120);
 
 function createWindow() {
   const cfg = loadCfg();
@@ -80,20 +100,26 @@ function createWindow() {
   // ---- IPC ----
   ipcMain.on('open-full', () => shell.openExternal(WIDGET_URL.replace(/widget\.html.*$/, '')));
   ipcMain.on('pt-set', (_e, on) => setClickThrough(on));
-  ipcMain.on('pt-arm', (_e, on) => { armed = !!on; applyMouseEvents(); });
+  // 页面武装/解除请求：主进程用光标实际位置把关，
+  // 旧版页面的「3 秒无移动解除」在光标仍在窗口内时会被直接忽略
+  ipcMain.on('pt-arm', (_e, on) => {
+    if (!win) return;
+    if (on) {
+      if (clickThrough && !armed && cursorInWindow()) { armed = true; applyMouseEvents(); }
+    } else {
+      if (armed && !cursorInWindow()) { armed = false; applyMouseEvents(); }
+    }
+  });
 
-  // ---- 右键菜单（穿透恢复的唯一入口）----
+  // ---- 右键菜单（穿透恢复入口之一）----
   win.webContents.on('context-menu', () => {
     Menu.buildFromTemplate([
-      { label: '恢复交互（退出穿透）', enabled: clickThrough, click: () => setClickThrough(false) },
+      { label: clickThrough ? '恢复交互（退出穿透）' : '进入穿透', click: () => setClickThrough(!clickThrough) },
       { label: '打开完整面板', click: () => shell.openExternal(WIDGET_URL.replace(/widget\.html.*$/, '')) },
       { type: 'separator' },
       { label: '退出悬浮窗', click: () => app.quit() },
     ]).popup();
   });
-
-  // 双保险：穿透中如果用户右键点到了窗口（armed 状态下），确保菜单能弹出
-  win.on('blur', () => { /* 保持穿透，不自动退出 */ });
 
   win.on('closed', () => { win = null; });
 }
@@ -101,8 +127,13 @@ function createWindow() {
 app.whenReady().then(() => {
   const got = app.requestSingleInstanceLock();
   if (!got) { app.quit(); return; }
+  // 全局快捷键兜底：Ctrl+Alt+P 切换穿透（就算窗口鼠标全失效也能救回来）
+  try { globalShortcut.register('Ctrl+Alt+P', () => {
+    if (win) { win.show(); setClickThrough(!clickThrough); }
+  }); } catch {}
   createWindow();
 });
+app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch {} });
 app.on('window-all-closed', () => app.quit());
 app.on('second-instance', () => {
   if (win) { win.show(); win.focus(); setClickThrough(false); }

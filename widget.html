@@ -194,7 +194,7 @@ function openFull(){
 }
 
 /* ============ 穿透模式：右键恢复 ============ */
-let PT=false,armed=false,lastMove=0;
+let PT=false,armed=false;
 function syncPTUI(){document.body.classList.toggle('pt-on',PT)}
 function enablePT(){
   if(PT)return;
@@ -205,16 +205,11 @@ function enablePT(){
    光标进入窗口 → 临时恢复鼠标事件，让右键能落到本窗上；
    左键在穿透模式下完全失效（不拖拽/不按钮），绝不干扰正常使用 */
 document.addEventListener('mousemove',()=>{
-  lastMove=Date.now();
   if(PT&&!armed&&E2){armed=true;window.__electron.ptArm(true);}
 });
 document.addEventListener('mouseleave',()=>{
   if(PT&&armed&&E2){armed=false;window.__electron.ptArm(false);}
 });
-/* 兜底：3 秒无移动（光标已离开）自动回到穿透 */
-setInterval(()=>{
-  if(PT&&armed&&E2&&Date.now()-lastMove>3000){armed=false;window.__electron.ptArm(false);}
-},500);
 /* 主进程菜单点了「恢复交互」 */
 if(E2&&window.__electron.onPtState){
   window.__electron.onPtState(on=>{PT=!!on;armed=false;syncPTUI();});
