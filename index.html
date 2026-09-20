@@ -52,6 +52,7 @@ body{
   border-radius:12px;width:38px;height:38px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
 }
 .icobtn:active{transform:scale(.94)}
+.icobtn:disabled{opacity:.3;transform:none;cursor:default}
 /* 余额 hero */
 .hero{text-align:center;padding:26px 16px}
 .hero .label{font-size:13px;color:#8b94a7;letter-spacing:2px;margin-bottom:8px}
@@ -148,7 +149,15 @@ ol.steps{padding-left:20px;font-size:13px;color:#aab3c5;line-height:1.9}
     </div>
 
     <div class="card">
-      <div class="panel-title"><div class="t">近 7 天趋势</div><div class="hint" id="updHint"></div></div>
+      <div class="panel-title">
+        <div class="t">每日消耗趋势</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <button class="icobtn" style="width:30px;height:30px;font-size:15px" id="tPrev" onclick="shiftTrend(-1)" title="往前一天">‹</button>
+          <span class="hint" id="trendRange" style="font-variant-numeric:tabular-nums;min-width:86px;text-align:center"></span>
+          <button class="icobtn" style="width:30px;height:30px;font-size:15px" id="tNext" onclick="shiftTrend(1)" title="往后一天">›</button>
+          <span class="hint" id="updHint"></span>
+        </div>
+      </div>
       <svg class="chart" id="trend" viewBox="0 0 640 170" preserveAspectRatio="xMidYMid meet"></svg>
     </div>
 
@@ -219,29 +228,29 @@ async function load(){
   const score=d.member?.left_score;
   if(score!==undefined && score!==null) document.getElementById('score').textContent=fmt(score);
 
-  // 明细驱动统计
+  // 明细驱动统计（7/30 天与服务端全量口径一致；todayUse/明细仍用 records）
   const recs=Array.isArray(d.records)?d.records:[];
-  window.__lastRecords=recs;   // 供每日消耗柱状图用
+  window.__lastRecords=recs;
+  window.__lastDaily=d.daily||[];    // 服务端按天聚合（全量明细，UTC+8）
   const today=new Date(); today.setHours(0,0,0,0);
   const day0=today.getTime()/1000;
-  let todayUse=0, use7=0, use30=0;
-  const now=Date.now()/1000;
+  let todayUse=0;
   for(const r of recs){
     const s=Number(r.score)||0; if(s>=0) continue;
     const t=Number(r.created_at)||0;
     if(t>=day0) todayUse+=(-s);
-    if(t>=now-7*86400) use7+=(-s);
-    if(t>=now-30*86400) use30+=(-s);
   }
+  const use7=Number(d.stats?.use7)||0, use30=Number(d.stats?.use30)||0;
   document.getElementById('todayUse').textContent='−'+fmt(todayUse);
   document.getElementById('st7').textContent='−'+fmt(use7);
   document.getElementById('st30').textContent='−'+fmt(use30);
   document.getElementById('stRate').textContent='−'+fmt(use30/30);
 
   // 快照趋势
-  drawTrend(d.snapshots||[]);
+  drawTrend();
 
   // 较昨日：找 ~24h 前最近快照
+  const now=Date.now()/1000;
   const snaps=d.snapshots||[];
   if(snaps.length>1){
     const cur=snaps[snaps.length-1].score;
@@ -297,23 +306,35 @@ async function submitTok(){
   }catch(e){ toast('网络异常'); }
 }
 
-function drawTrend(snaps){
-  // v2：每日消耗柱状图（数据源=records，按天聚合负向变动）+ 悬停 tooltip
+let trendOffset=0;   // 0=窗口右端为今天；-1=右端昨天，往前翻
+function shiftTrend(d){
+  trendOffset=Math.min(0,Math.max(-89,trendOffset+d));
+  drawTrend();
+}
+function drawTrend(){
+  // 每日消耗柱状图（数据源=records，按天聚合负向变动），窗口 14 天，可用 ‹ › 前后翻
   const svg=document.getElementById('trend');
-  const W=640,H=190,L=54,R=14,T=18,B=28;
+  const W=640,H=190,L=54,R=14,T=18,B=28,N=14;
   const days=['日','一','二','三','四','五','六'];
-  // 近 14 天每日消耗
+  const p2=n=>String(n).padStart(2,'0');
+  const keyOf=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+  const dmap={};
+  for(const x of (window.__lastDaily||[])) dmap[x.d]=Number(x.use)||0;   // 服务端按天聚合
   const now=new Date(); now.setHours(0,0,0,0);
-  const day0=now.getTime()/1000;
-  const per=new Array(14).fill(0);
-  for(const r of (window.__lastRecords||[])){
-    const s=Number(r.score)||0; if(s>=0) continue;
-    const t=Number(r.created_at)||0;
-    const idx=Math.floor((day0+86400 - t)/86400); // 今天=0
-    if(idx>=0&&idx<14) per[13-idx]+=(-s);
+  const day0=now.getTime()/1000 + trendOffset*86400;  // 窗口最右一天 0 点
+  const per=new Array(N).fill(0);
+  for(let i=0;i<N;i++){
+    const dd=new Date((day0-(N-1-i)*86400)*1000);
+    per[i]=dmap[keyOf(dd)]||0;
   }
+  const d0=new Date((day0-(N-1)*86400)*1000), d1=new Date(day0*1000);
+  const rg=document.getElementById('trendRange');
+  if(rg) rg.textContent=`${d0.getMonth()+1}/${d0.getDate()}–${d1.getMonth()+1}/${d1.getDate()}`;
+  const bp=document.getElementById('tPrev'), bn=document.getElementById('tNext');
+  if(bp) bp.disabled=trendOffset<=-89;
+  if(bn) bn.disabled=trendOffset===0;
   const has=per.some(v=>v>0);
-  if(!has){ svg.innerHTML='<text x="320" y="95" fill="#7c8598" font-size="13" text-anchor="middle">近两周暂无消耗记录</text>'; return; }
+  if(!has){ svg.innerHTML=`<text x="320" y="95" fill="#7c8598" font-size="13" text-anchor="middle">${trendOffset===0?'近两周暂无消耗记录':'该时段暂无消耗记录'}</text>`; return; }
   const vmax=Math.max(...per,1);
   const nice=v=>v>=10000?(v/1000).toFixed(1)+'k':Math.round(v);
   let grid='',labels='',bars='';
@@ -322,14 +343,13 @@ function drawTrend(snaps){
     grid+=`<line x1="${L}" y1="${yy}" x2="${W-R}" y2="${yy}" stroke="rgba(255,255,255,.06)"/>`;
     labels+=`<text x="${L-8}" y="${yy+4}" fill="#7c8598" font-size="10" text-anchor="end">${v?nice(v):'0'}</text>`;
   }
-  const bw=Math.floor((W-L-R)/14*0.52), gap=(W-L-R)/14;
-  let tooltip='';
+  const bw=Math.floor((W-L-R)/N*0.52), gap=(W-L-R)/N;
   per.forEach((v,i)=>{
     const cx=L+gap*i+gap/2;
-    const d=new Date((day0-(13-i)*86400)*1000);
+    const d=new Date((day0-(N-1-i)*86400)*1000);
     const hh=Math.max(v>0?3:0, v/vmax*(H-T-B));
     const y0=H-B;
-    const isToday=i===13;
+    const isToday=(i===N-1 && trendOffset===0);
     bars+=`<rect x="${(cx-bw/2).toFixed(1)}" y="${(y0-hh).toFixed(1)}" width="${bw}" height="${hh.toFixed(1)}" rx="3" fill="${v?'url(#bg)':'rgba(255,255,255,.05)'}"/>`;
     // x 轴：周几 + 日期
     labels+=`<text x="${cx.toFixed(1)}" y="${H-12}" fill="${isToday?'#9db3e8':'#7c8598'}" font-size="10" text-anchor="middle" font-weight="${isToday?'700':'400'}">周${days[d.getDay()]}</text>`;
@@ -348,7 +368,7 @@ function drawTrend(snaps){
     const v=per[idx]; if(!v) return;
     rc.style.cursor='pointer';
     rc.addEventListener('mouseenter',ev=>{
-      const d=new Date((day0-(13-idx)*86400)*1000);
+      const d=new Date((day0-(N-1-idx)*86400)*1000);
       showTip(ev,`${(d.getMonth()+1)}/${d.getDate()} · 消耗 −${nice(v)}`);
     });
     rc.addEventListener('mousemove',ev=>showTip(ev,`${(d.getMonth()+1)}/${d.getDate()} · 消耗 −${nice(v)}`));

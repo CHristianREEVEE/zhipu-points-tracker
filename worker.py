@@ -201,10 +201,17 @@ def fetch_all(cfg, force=False):
         "nickname": ((info or {}).get("result") or {}).get("nickname", ""),
     }
 
-    # 明细（变动记录）
-    recs_all = []
+    # 明细（变动记录）——增量合并：常规轮次翻到已知页即停；历史覆盖不足时自动深挖回填
+    # 2026-09-20 修复：旧版只拉 4 页（120 条），重度使用下只覆盖 ~1.5 天，
+    # 导致"7天/30天消耗"和趋势图严重少算
+    recs_old = load_json("records.json", [])
+    old_ids = {r.get("id") for r in recs_old if r.get("id")}
+    known = {r.get("id"): r for r in recs_old if r.get("id")}
+    cutoff = now - 35 * 86400                    # 保留近 35 天（30 天统计 + 余量）
+    covered = bool(recs_old) and min(
+        (r.get("created_at") or 0) for r in recs_old) < now - 32 * 86400
     page = 1
-    for _ in range(4):  # 最多拉 4 页
+    for _ in range(100):                        # 单轮最多 100 页防失控
         st, body = api_call("GET",
             f"/chatglm/member-api/member/score_record?page={page}&page_size=30&record_type=",
             at)
@@ -213,12 +220,25 @@ def fetch_all(cfg, force=False):
             break
         result = (body or {}).get("result") or {}
         lst = result.get("list") or []
-        recs_all.extend(lst)
-        if not result.get("has_more") or not lst:
+        if not lst:
+            break
+        for r in lst:
+            rid = r.get("id")
+            if rid:
+                known[rid] = r
+        page_ids = {r.get("id") for r in lst}
+        oldest = min((r.get("created_at") or 0) for r in lst)
+        if covered and page_ids and page_ids <= old_ids:
+            break                               # 增量到头：整页都已入库
+        if oldest and oldest < cutoff:
+            break                               # 已翻过保留窗口
+        if not result.get("has_more"):
             break
         page += 1
-    if recs_all:
-        save_json("records.json", recs_all[:300])
+    recs_all = [r for r in known.values() if (r.get("created_at") or 0) >= cutoff]
+    recs_all.sort(key=lambda r: r.get("created_at") or 0, reverse=True)
+    save_json("records.json", recs_all[:4000])
+    dbg(f"records 合并后 {len(recs_all)} 条（本轮翻到第 {page} 页，covered={covered}）")
     cfg["last_fetch"] = now
     save_cfg(cfg)
 
@@ -264,11 +284,30 @@ class Handler(BaseHTTPRequestHandler):
                 return self._json(401, {"error": "key"})
             snaps = load_json("snapshots.json", [])
             recs = load_json("records.json", [])
+            # 2026-09-20：records 只回最近 120 条（悬浮窗 60s 轮询，全量会撑爆流量）；
+            # 统计/趋势用服务端聚合好的 stats + daily（基于全量明细，UTC+8 天界）
+            now = int(time.time())
+            use7 = sum(-float(r.get("score") or 0) for r in recs
+                       if float(r.get("score") or 0) < 0
+                       and (r.get("created_at") or 0) > now - 7 * 86400)
+            use30 = sum(-float(r.get("score") or 0) for r in recs
+                        if float(r.get("score") or 0) < 0
+                        and (r.get("created_at") or 0) > now - 30 * 86400)
+            daily = {}
+            for r in recs:
+                s = float(r.get("score") or 0)
+                if s >= 0:
+                    continue
+                d = time.strftime("%Y-%m-%d", time.gmtime((r.get("created_at") or 0) + 8 * 3600))
+                daily[d] = daily.get(d, 0.0) + (-s)
+            daily = [{"d": k, "use": round(v, 2)} for k, v in sorted(daily.items())]
             return self._json(200, {
                 "updated_at": state.get("last_ok", 0),
                 "member": state.get("member", {}),
                 "snapshots": snaps[-720:],
-                "records": recs,
+                "records": recs[:200],
+                "stats": {"use7": round(use7, 2), "use30": round(use30, 2)},
+                "daily": daily[-95:],
                 "token_ok": state.get("token_ok", False),
                 "last_err": state.get("last_err", ""),
             })
