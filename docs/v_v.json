@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "可见数字：**58,666、265、-7,438、-11,324、-377**\n\n顶部与下方情况：**是，顶部与下方均已被深色块（或深色背景）遮住/覆盖，仅中间部分数字清晰可见。**",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790316417,
+  "id": "202609251406553e547354d1ae410e",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609251406553e547354d1ae410e",
+  "usage": {
+    "completion_tokens": 64,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 907,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 971
+  }
+}

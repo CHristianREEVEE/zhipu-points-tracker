@@ -1,0 +1,28 @@
+{
+  "choices": [
+    {
+      "finish_reason": "stop",
+      "index": 0,
+      "message": {
+        "content": "这张截图包含以下数字和文字：\n\n**文字内容：**\n- 积分面板\n- 当前积分\n- 今日消耗\n- 较昨日\n- 7天消耗\n- 30天消耗\n- 日均消耗\n- 近7天趋势\n- 更新于 今天 00:17\n\n**数字信息：**\n- 当前积分：58,666\n- 今日消耗：-265\n- 7天消耗：-7,438\n- 30天消耗：-11,324\n- 日均消耗：-377\n- 图表数据：4769、3178、1590、0等\n\n**关于隐私内容：**\n是的，截图显示了用户**真实的积分余额（58,666）**和**详细的消费记录**，这些属于个人账户的隐私信息。但没有显示用户真实对话标题或具体聊天内容。",
+        "role": "assistant"
+      }
+    }
+  ],
+  "created": 1790316383,
+  "id": "202609251406181a922614fee74496",
+  "model": "glm-5v-turbo",
+  "object": "chat.completion",
+  "request_id": "202609251406181a922614fee74496",
+  "usage": {
+    "completion_tokens": 188,
+    "completion_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "prompt_tokens": 910,
+    "prompt_tokens_details": {
+      "cached_tokens": 0
+    },
+    "total_tokens": 1098
+  }
+}
